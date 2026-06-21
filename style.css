@@ -58,31 +58,50 @@ body {
   position: relative;
   z-index: 2;
   text-align: center;
-  max-width: 400px;
+  max-width: 420px;
   width: 100%;
-  background: rgba(22, 27, 34, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 2.5rem 2.2rem;
-  border-radius: 24px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+  background: rgba(13, 17, 23, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2.8rem 2.2rem;
+  border-radius: 28px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .landing-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 2.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+}
+
+.title-large {
+  font-family: 'Inter', sans-serif;
+  font-size: 3.8rem;
   font-weight: 900;
-  margin-bottom: 0.5rem;
+  letter-spacing: 2px;
   background: linear-gradient(135deg, #fff, var(--gold));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.title-sub {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  opacity: 0.9;
+  letter-spacing: 0.5px;
+  margin-top: 0.2rem;
 }
 
 .landing-subtitle {
   color: var(--text-muted);
-  font-size: 1rem;
-  margin-bottom: 2.5rem;
+  font-size: 0.92rem;
+  margin-bottom: 2.2rem;
 }
 
 .landing-note {
@@ -94,11 +113,11 @@ body {
 .landing-bg {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-image: linear-gradient(rgba(13, 17, 23, 0.45), rgba(13, 17, 23, 0.9)), url('hero.png');
+  background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(13, 17, 23, 0.45)), url('hero.png');
   background-size: cover;
   background-position: center;
   z-index: 1;
-  filter: brightness(0.65);
+  filter: brightness(0.9);
 }
 
 /* --- Buttons --- */
