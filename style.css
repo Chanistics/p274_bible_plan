@@ -1254,6 +1254,46 @@ body.light-mode .modal-content {
 
 /* 모바일 전용 반응형 레이아웃 최적화 */
 @media (max-width: 600px) {
+  /* Layout Cards & Containers */
+  .layout-left-card, .layout-right-card {
+    padding: 1rem;
+  }
+
+  /* Calendar Responsive tweaks */
+  .calendar-grid-cells {
+    gap: 4px;
+  }
+  .calendar-cell {
+    padding: 4px;
+  }
+  .calendar-cell-greg {
+    font-size: 0.75rem;
+  }
+  .calendar-cell-heb {
+    font-size: 0.55rem;
+  }
+  .calendar-cell-holiday {
+    font-size: 0.52rem;
+    padding: 0px 2px;
+    margin-top: 1px;
+  }
+
+  /* Upcoming Holidays Responsive tweaks */
+  .holiday-item-row {
+    padding: 0.65rem 0.8rem;
+  }
+  .holiday-item-title {
+    font-size: 0.85rem;
+  }
+  .holiday-item-date {
+    font-size: 0.7rem;
+    word-break: break-all;
+  }
+  .holiday-item-dday {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.45rem;
+  }
+
   /* Header padding & sizing */
   .custom-header {
     padding: 1.25rem 1rem 1rem;
@@ -1386,6 +1426,28 @@ body.light-mode .modal-content {
 }
 
 @media (max-width: 480px) {
+  /* Layout Cards & Containers */
+  .layout-left-card, .layout-right-card {
+    padding: 0.75rem;
+  }
+
+  /* Calendar 480px responsive tweaks */
+  .calendar-grid-cells {
+    gap: 3px;
+  }
+  .calendar-cell {
+    padding: 3px;
+  }
+  .calendar-cell-greg {
+    font-size: 0.68rem;
+  }
+  .calendar-cell-heb {
+    font-size: 0.48rem;
+  }
+  .calendar-cell-holiday {
+    font-size: 0.48rem;
+  }
+
   .modal-overlay {
     padding: 0.75rem;
   }

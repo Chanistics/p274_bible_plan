@@ -567,10 +567,14 @@ async function renderDashboard() {
       ntText = ` | 신약: ${todayPlan.nt[0].book} ${todayPlan.nt[0].chapter}장` + 
                (todayPlan.nt.length > 1 ? `~${todayPlan.nt[todayPlan.nt.length-1].chapter}장` : '');
     }
-    document.getElementById('ticker-reading-text').textContent = 
-      pName === "Special Week" 
-        ? `절기 주간 — ${torahTranslated || '절기 본문'}${megillahText}${otText}${ntText}`
-        : `${weekNum}주차 ${pName} (${meta.ko}) — ${torahTranslated || '일정 없음'}${megillahText}${otText}${ntText}`;
+    const pTitle = pName === "Special Week" 
+      ? `절기 주간`
+      : `${weekNum}주차 ${pName} (${meta.ko})`;
+    const pBody = `${torahTranslated || '일정 없음'}${megillahText}${otText}${ntText}`;
+
+    document.getElementById('ticker-reading-text').innerHTML = 
+      `<div class="ticker-title-sub" style="font-weight: 700; color: #fff; margin-bottom: 0.15rem;">${pTitle}</div>` +
+      `<div class="ticker-body-sub" style="font-size: 0.8rem; color: var(--text-muted);">${pBody}</div>`;
   }
 
   // 5. 왼쪽 카드: 금주의 파라샤 정보
