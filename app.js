@@ -402,8 +402,14 @@ async function initApp() {
   // Tab Setup
   setupTabs();
 
-  // 화면 렌더링
-  await renderDashboard();
+  // 화면 렌더링 (이전 활성화된 탭 복원)
+  const tabToActivate = appState.activeTab || 'dashboard';
+  const tabBtn = document.querySelector(`.tab-item[data-tab="${tabToActivate}"]`);
+  if (tabBtn) {
+    tabBtn.click();
+  } else {
+    await renderDashboard();
+  }
   
   // 실시간 자정 타이머 개시
   setupMidnightTimer();
@@ -464,6 +470,10 @@ function setupTabs() {
       if (pane) {
         pane.classList.add('active');
       }
+      
+      // 활성 탭 상태 저장
+      appState.activeTab = targetTab;
+      localStorage.setItem(STATE_KEY, JSON.stringify(appState));
       
       if (targetTab === 'dashboard' || targetTab === 'reading' || targetTab === 'weekly') {
         renderDashboard();
@@ -946,6 +956,16 @@ function createChecklistItem(type, label, title, isDone, dateStr, passageData) {
 document.getElementById('btn-enter').addEventListener('click', () => {
   document.getElementById('landing-page').classList.remove('active');
   document.getElementById('dashboard-page').classList.add('active');
+  
+  // 기기 진입 여부 및 활성 탭 상태 기록
+  const savedState = localStorage.getItem(STATE_KEY);
+  if (savedState) {
+    appState = JSON.parse(savedState);
+  }
+  appState.hasEntered = true;
+  appState.activeTab = 'dashboard';
+  localStorage.setItem(STATE_KEY, JSON.stringify(appState));
+  
   initApp();
 });
 
@@ -1509,3 +1529,22 @@ async function openBibleReader(title, passageData) {
     errorContainer.classList.remove('hidden');
   }
 }
+
+// 페이지 로드 시 기존 진입 상태 확인 및 자동 로그인/복원
+function checkAutoEnter() {
+  const savedState = localStorage.getItem(STATE_KEY);
+  if (savedState) {
+    try {
+      const parsed = JSON.parse(savedState);
+      if (parsed && parsed.hasEntered) {
+        document.getElementById('landing-page').classList.remove('active');
+        document.getElementById('dashboard-page').classList.add('active');
+        initApp();
+      }
+    } catch (e) {
+      console.error("Failed to parse auto-enter state", e);
+    }
+  }
+}
+
+checkAutoEnter();
