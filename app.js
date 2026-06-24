@@ -328,7 +328,51 @@ async function initApp() {
 
   // 화면 렌더링
   await renderDashboard();
+  
+  // 실시간 자정 타이머 개시
+  setupMidnightTimer();
 }
+
+// 실시간 날짜 변경 감지 및 자동 갱신
+let lastCheckedDateStr = getTodayStr();
+let midnightTimer = null;
+
+function checkDateTransition() {
+  const currentTodayStr = getTodayStr();
+  if (currentTodayStr !== lastCheckedDateStr) {
+    console.log("Real-time date transition detected. Refreshing app date from " + lastCheckedDateStr + " to " + currentTodayStr);
+    lastCheckedDateStr = currentTodayStr;
+    
+    if (!appState || !appState.overrideToday) {
+      activeDateStr = currentTodayStr;
+    }
+    
+    renderDashboard();
+    setupMidnightTimer();
+  }
+}
+
+function setupMidnightTimer() {
+  if (midnightTimer) clearTimeout(midnightTimer);
+  
+  const now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  const msToMidnight = tomorrow - now;
+  
+  midnightTimer = setTimeout(() => {
+    checkDateTransition();
+  }, msToMidnight);
+}
+
+// 화면이 포커스를 얻거나 백그라운드에서 복귀할 때 날짜 변경 감지
+window.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    checkDateTransition();
+  }
+});
+window.addEventListener('focus', () => {
+  checkDateTransition();
+});
 
 // 탭 전환 핸들러 설정
 function setupTabs() {
@@ -573,8 +617,8 @@ async function renderDashboard() {
     const pBody = `${torahTranslated || '일정 없음'}${megillahText}${otText}${ntText}`;
 
     document.getElementById('ticker-reading-text').innerHTML = 
-      `<div class="ticker-title-sub" style="font-weight: 700; color: #fff; margin-bottom: 0.15rem;">${pTitle}</div>` +
-      `<div class="ticker-body-sub" style="font-size: 0.8rem; color: var(--text-muted);">${pBody}</div>`;
+      `<div class="ticker-title-sub">${pTitle}</div>` +
+      `<div class="ticker-body-sub">${pBody}</div>`;
   }
 
   // 5. 왼쪽 카드: 금주의 파라샤 정보

@@ -619,6 +619,17 @@ body {
   margin-left: 0.5rem;
 }
 
+.ticker-title-sub {
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.15rem;
+}
+
+.ticker-body-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .btn-check-all {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -871,6 +882,8 @@ body.light-mode {
   --text-main: #24292f;
   --text-muted: #57606a;
   --text-dim: #8c959f;
+  --gold: #b27d00;
+  --gold-dim: rgba(178, 125, 0, 0.12);
 }
 
 body.light-mode .custom-header {
@@ -919,6 +932,10 @@ body.light-mode .custom-tabs {
 }
 
 body.light-mode .parasha-title {
+  color: #000;
+}
+
+body.light-mode .ticker-title-sub {
   color: #000;
 }
 
