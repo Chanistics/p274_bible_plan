@@ -43,6 +43,34 @@ function abbreviateReading(str) {
   return result;
 }
 
+// 여러 성경 장이 섞여 있을 때 (특히 책이 바뀔 때) 자연스러운 한글 범위 표기 생성
+function formatReadingRange(chapters, useShortStyle = false) {
+  if (!chapters || chapters.length === 0) return '';
+  
+  const groups = [];
+  let currentGroup = null;
+  
+  chapters.forEach(c => {
+    if (!currentGroup || currentGroup.book !== c.book) {
+      currentGroup = { book: c.book, chapters: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.chapters.push(c.chapter);
+  });
+  
+  const groupStrings = groups.map(g => {
+    if (g.chapters.length === 1) {
+      return useShortStyle ? `${g.book} ${g.chapters[0]}` : `${g.book} ${g.chapters[0]}장`;
+    } else {
+      const start = g.chapters[0];
+      const end = g.chapters[g.chapters.length - 1];
+      return useShortStyle ? `${g.book} ${start}-${end}` : `${g.book} ${start}장 ~ ${end}장`;
+    }
+  });
+  
+  return groupStrings.join(', ');
+}
+
 // 성경에 기록된 절기 (레위기 23장 절기 + 에스더 부림절 + 심하트 토라)
 const BIBLICAL_HOLIDAYS_MAP = {
   'rosh hashana': '나팔절 (Rosh Hashana)',
@@ -603,13 +631,11 @@ async function renderDashboard() {
     const megillahText = todayPlan.megillah ? ` | ${todayPlan.megillah}` : '';
     let otText = '';
     if (todayPlan.ot && todayPlan.ot.length > 0) {
-      otText = ` | 구약: ${todayPlan.ot[0].book} ${todayPlan.ot[0].chapter}장` + 
-               (todayPlan.ot.length > 1 ? `~${todayPlan.ot[todayPlan.ot.length-1].chapter}장` : '');
+      otText = ` | 구약: ${formatReadingRange(todayPlan.ot)}`;
     }
     let ntText = '';
     if (todayPlan.nt && todayPlan.nt.length > 0) {
-      ntText = ` | 신약: ${todayPlan.nt[0].book} ${todayPlan.nt[0].chapter}장` + 
-               (todayPlan.nt.length > 1 ? `~${todayPlan.nt[todayPlan.nt.length-1].chapter}장` : '');
+      ntText = ` | 신약: ${formatReadingRange(todayPlan.nt)}`;
     }
     const pTitle = pName === "Special Week" 
       ? `절기 주간`
@@ -754,14 +780,12 @@ async function renderDashboard() {
       checklistContainer.appendChild(createChecklistItem('megillah', '메길롯', todayPlan.megillah, progressToday.megillah, todayStr));
     }
     if (todayPlan.ot && todayPlan.ot.length > 0) {
-      const title = `${todayPlan.ot[0].book} ${todayPlan.ot[0].chapter}장` + 
-                    (todayPlan.ot.length > 1 ? ` ~ ${todayPlan.ot[todayPlan.ot.length-1].chapter}장` : '');
-      checklistContainer.appendChild(createChecklistItem('ot', '구약 성경', title, progressToday.ot, todayStr));
+      const title = formatReadingRange(todayPlan.ot);
+      checklistContainer.appendChild(createChecklistItem('ot', '구약 성경', title, progressToday.ot, todayStr, todayPlan.ot));
     }
     if (todayPlan.nt && todayPlan.nt.length > 0) {
-      const title = `${todayPlan.nt[0].book} ${todayPlan.nt[0].chapter}장` + 
-                    (todayPlan.nt.length > 1 ? ` ~ ${todayPlan.nt[todayPlan.nt.length-1].chapter}장` : '');
-      checklistContainer.appendChild(createChecklistItem('nt', '신약 성경', title, progressToday.nt, todayStr));
+      const title = formatReadingRange(todayPlan.nt);
+      checklistContainer.appendChild(createChecklistItem('nt', '신약 성경', title, progressToday.nt, todayStr, todayPlan.nt));
     }
   }
 
@@ -793,13 +817,11 @@ async function renderDashboard() {
       readings.push(`<span class="sched-tag megillah">${abbreviateReading(dayData.megillah)}</span>`);
     }
     if (dayData.ot && dayData.ot.length > 0) {
-      const title = `${dayData.ot[0].book} ${dayData.ot[0].chapter}장` + 
-                    (dayData.ot.length > 1 ? `~${dayData.ot[dayData.ot.length-1].chapter}장` : '');
+      const title = formatReadingRange(dayData.ot);
       readings.push(`<span class="sched-tag ot">${abbreviateReading(title)}</span>`);
     }
     if (dayData.nt && dayData.nt.length > 0) {
-      const title = `${dayData.nt[0].book} ${dayData.nt[0].chapter}장` + 
-                    (dayData.nt.length > 1 ? `~${dayData.nt[dayData.nt.length-1].chapter}장` : '');
+      const title = formatReadingRange(dayData.nt);
       readings.push(`<span class="sched-tag nt">${abbreviateReading(title)}</span>`);
     }
 
@@ -836,7 +858,7 @@ async function renderDashboard() {
   renderUpcomingHolidays();
 }
 
-function createChecklistItem(type, label, title, isDone, dateStr) {
+function createChecklistItem(type, label, title, isDone, dateStr, passageData) {
   const div = document.createElement('div');
   div.className = `reading-item ${isDone ? 'done' : ''}`;
   div.innerHTML = `
@@ -862,7 +884,7 @@ function createChecklistItem(type, label, title, isDone, dateStr) {
   // 본문 읽기 버튼 클릭 시 getBible API 본문 읽기 열기
   div.querySelector('.btn-read-passage').addEventListener('click', (e) => {
     e.stopPropagation();
-    openBibleReader(title);
+    openBibleReader(title, passageData);
   });
   
   return div;
@@ -970,13 +992,11 @@ function renderAnnualView() {
         html += `<div class="rd-tag type-megillah ${prog.megillah?'done':''}">${data.megillah}</div>`;
       }
       if (data.ot && data.ot.length > 0) {
-        const title = `${data.ot[0].book} ${data.ot[0].chapter}` + 
-                      (data.ot.length > 1 ? `-${data.ot[data.ot.length-1].chapter}` : '');
+        const title = formatReadingRange(data.ot, true);
         html += `<div class="rd-tag type-ot ${prog.ot?'done':''}">${title}</div>`;
       }
       if (data.nt && data.nt.length > 0) {
-        const title = `${data.nt[0].book} ${data.nt[0].chapter}` + 
-                      (data.nt.length > 1 ? `-${data.nt[data.nt.length-1].chapter}` : '');
+        const title = formatReadingRange(data.nt, true);
         html += `<div class="rd-tag type-nt ${prog.nt?'done':''}">${title}</div>`;
       }
       
@@ -1320,7 +1340,7 @@ function parseKoreanReference(korRef) {
 }
 
 // getBible API v2를 호출하여 성경 구절을 가져온 뒤 모달 창에 시각화
-async function openBibleReader(title) {
+async function openBibleReader(title, passageData) {
   const modal = document.getElementById('bible-reader-modal');
   const modalTitle = document.getElementById('bible-reader-title');
   const loading = modal.querySelector('.bible-loading');
@@ -1337,25 +1357,50 @@ async function openBibleReader(title) {
   errorContainer.classList.add('hidden');
   textContainer.innerHTML = '';
   
-  const parsedRef = parseKoreanReference(title);
-  if (!parsedRef) {
-    loading.classList.add('hidden');
-    errorContainer.textContent = "본문 구절을 파싱할 수 없습니다. (지원되지 않는 형식)";
-    errorContainer.classList.remove('hidden');
-    return;
-  }
-  
   try {
     const fetchPromises = [];
-    for (let ch = parsedRef.startCh; ch <= parsedRef.endCh; ch++) {
-      const url = `https://api.getbible.net/v2/korean/${parsedRef.bookNumber}/${ch}.json`;
-      fetchPromises.push(
-        fetch(url)
-          .then(res => {
-            if (!res.ok) throw new Error(`API returned status ${res.status}`);
-            return res.json();
-          })
-      );
+    let parsedRef = null;
+    
+    if (Array.isArray(passageData) && passageData.length > 0) {
+      // 1. passageData가 배열인 경우 (구약/신약 범위 통독)
+      passageData.forEach(item => {
+        const bookNum = getBookNumber(item.book);
+        if (bookNum) {
+          const url = `https://api.getbible.net/v2/korean/${bookNum}/${item.chapter}.json`;
+          fetchPromises.push(
+            fetch(url)
+              .then(res => {
+                if (!res.ok) throw new Error(`API returned status ${res.status}`);
+                return res.json();
+              })
+          );
+        }
+      });
+    } else {
+      // 2. passageData가 제공되지 않거나 배열이 아닌 경우 (텍스트 레퍼런스 파싱)
+      const refToParse = (typeof passageData === 'string') ? passageData : title;
+      parsedRef = parseKoreanReference(refToParse);
+      if (!parsedRef) {
+        loading.classList.add('hidden');
+        errorContainer.textContent = "본문 구절을 파싱할 수 없습니다. (지원되지 않는 형식)";
+        errorContainer.classList.remove('hidden');
+        return;
+      }
+      
+      for (let ch = parsedRef.startCh; ch <= parsedRef.endCh; ch++) {
+        const url = `https://api.getbible.net/v2/korean/${parsedRef.bookNumber}/${ch}.json`;
+        fetchPromises.push(
+          fetch(url)
+            .then(res => {
+              if (!res.ok) throw new Error(`API returned status ${res.status}`);
+              return res.json();
+            })
+        );
+      }
+    }
+    
+    if (fetchPromises.length === 0) {
+      throw new Error("가져올 본문 구절이 없습니다.");
     }
     
     const chaptersData = await Promise.all(fetchPromises);
@@ -1365,12 +1410,12 @@ async function openBibleReader(title) {
     let html = '';
     chaptersData.forEach(chapterData => {
       const chNum = chapterData.chapter;
-      const bookNameKOR = chapterData.book_name || parsedRef.bookName;
+      const bookNameKOR = chapterData.book_name || (parsedRef ? parsedRef.bookName : '');
       
       let versesToShow = chapterData.verses || [];
       
-      // 구절 범위가 지정된 경우 필터링
-      if (parsedRef.startVs !== undefined) {
+      // 구절 범위가 지정된 경우 필터링 (텍스트 파싱을 거쳤고 startVs가 있을 때만)
+      if (parsedRef && parsedRef.startVs !== undefined) {
         versesToShow = versesToShow.filter(v => {
           const vNum = v.verse;
           if (chNum === parsedRef.startCh && chNum === parsedRef.endCh) {

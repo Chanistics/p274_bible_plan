@@ -1,8 +1,8 @@
-const CACHE_NAME = 'parashat-tracker-v10';
+const CACHE_NAME = 'parashat-tracker-v11';
 const urlsToCache = [
   './',
   './index.html',
-  './style.css?v=10',
+  './style.css?v=11',
   './bible-data.js',
   './hebcal.js',
   './generator.js',
