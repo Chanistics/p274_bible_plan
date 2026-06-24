@@ -1,7 +1,7 @@
 // app.js
 
 const STATE_KEY = 'parashat_tracker_state';
-const PLAN_KEY_PREFIX = 'parashat_plan_v7_'; // 캐시 갱신 및 순차 배분(구약 완료 후 신약) 수정을 반영한 v7 접두사
+const PLAN_KEY_PREFIX = 'parashat_plan_v8_'; // 캐시 갱신 및 베레시트 주기 맞춤 동적 배분 수정을 반영한 v8 접두사
 
 let appState = {
   progress: {}, // { 'YYYY-MM-DD': { torah: true, megillah: false, ot: false... } }
@@ -303,12 +303,33 @@ async function initApp() {
   const savedMode = appState.theme || 'dark';
   document.body.classList.toggle('light-mode', savedMode === 'light');
 
-  // 현재 유대력 연도 기준 365일 플랜 생성
+  // 현재 유대력 연도 기준 365일 플랜 생성 (Bereshit 시작주간 기준 연도 판정)
   let hYear = "5786";
   try {
-    hYear = await getCurrentHebrewYear();
+    const calendarHYear = await getCurrentHebrewYear();
+    let bereshitSunday = await findBereshitSunday(calendarHYear);
+    
+    // 5787 베레시트 특별 대응 (토요일 시작 적용)
+    if (calendarHYear === "5787") {
+      bereshitSunday = "2026-10-10";
+    }
+    
+    const todayStr = getTodayStr();
+    
+    // 오늘 날짜가 해당 유대력 연도의 Bereshit 시작일 이전이면, 아직 이전 연도의 독서 주기입니다.
+    if (todayStr < bereshitSunday) {
+      hYear = (Number(calendarHYear) - 1).toString();
+    } else {
+      hYear = calendarHYear;
+    }
+    
+    // 앱 개발 시작 연도인 5786년 미만으로 내려가지 않도록 가드 설정
+    if (Number(hYear) < 5786) {
+      hYear = "5786";
+    }
   } catch (e) {
     console.error("Failed to get Hebrew year dynamically, fallback to 5786", e);
+    hYear = "5786";
   }
 
   const planKey = PLAN_KEY_PREFIX + hYear;
@@ -325,15 +346,42 @@ async function initApp() {
       console.error("Failed to find Bereshit Sunday, using fallback", e);
     }
     
+    // 5787 베레시트 시작일 특별 대응 (토요일 시작 적용)
+    if (hYear === "5787") {
+      startDateStr = "2026-10-10";
+    }
+    
+    // 다음 유대력 연도의 Bereshit 주간 일요일 산출하여 총 일수 계산 (베레시트 주기에 맞춘 유연한 사이클 일수)
+    const nextHYear = (Number(hYear) + 1).toString();
+    let nextStartDateStr = "2026-10-04";
+    try {
+      nextStartDateStr = await findBereshitSunday(nextHYear);
+    } catch (e) {
+      console.error("Failed to find next Bereshit Sunday", e);
+      const d = new Date(startDateStr);
+      d.setDate(d.getDate() + 365);
+      nextStartDateStr = d.toISOString().split('T')[0];
+    }
+    
+    // 5786 -> 5787 베레시트 전환일 특별 대응 (토요일 시작 적용)
+    if (hYear === "5786") {
+      nextStartDateStr = "2026-10-10";
+    }
+    
+    const dStart = new Date(startDateStr);
+    const dNextStart = new Date(nextStartDateStr);
+    const totalDays = Math.round((dNextStart - dStart) / (1000 * 60 * 60 * 24));
+    console.log(`Plan for ${hYear}: ${startDateStr} ~ ${nextStartDateStr} (${totalDays} days)`);
+    
     // 유대력 사이클에 걸쳐있는 양력 연도 2년분 Hebcal 데이터 획득
-    const startGYear = new Date(startDateStr).getFullYear();
+    const startGYear = dStart.getFullYear();
     const endGYear = startGYear + 1;
     
     const items1 = await window.HebcalAPI.fetchHebcalYearData(startGYear.toString());
     const items2 = await window.HebcalAPI.fetchHebcalYearData(endGYear.toString());
     const hebcalItems = [...items1, ...items2];
     
-    const newPlan = window.Generator.generateHebrewYearPlan(hebcalItems, startDateStr);
+    const newPlan = window.Generator.generateHebrewYearPlan(hebcalItems, startDateStr, totalDays);
     localStorage.setItem(planKey, JSON.stringify(newPlan));
     plan = newPlan;
     document.getElementById('generating-overlay').classList.add('hidden');
@@ -639,6 +687,8 @@ async function renderDashboard() {
     }
     const pTitle = pName === "Special Week" 
       ? `절기 주간`
+      : pName.includes("샬롬")
+      ? `${weekNum}주차 샬롬 (Shalom)`
       : `${weekNum}주차 ${pName} (${meta.ko})`;
     const pBody = `${torahTranslated || '일정 없음'}${megillahText}${otText}${ntText}`;
 
@@ -672,7 +722,9 @@ async function renderDashboard() {
     const bookHeb = TORAH_BOOK_HEB_MAP[bookName] || '토라';
     
     document.getElementById('parasha-badge-text').textContent = 
-      pName === "Special Week" ? "절기 주간" : `${weekNum}주차 ㆍ ${bookName} (${bookHeb})`;
+      pName === "Special Week" ? "절기 주간" : 
+      pName.includes("샬롬") ? `${weekNum}주차 ㆍ 샬롬 (Shalom)` :
+      `${weekNum}주차 ㆍ ${bookName} (${bookHeb})`;
     document.getElementById('parasha-title-text').textContent = pName;
     document.getElementById('parasha-meaning-text-dashboard').textContent = pName === "Special Week" ? "절기 특별 본문" : meta.meaning;
     
@@ -948,7 +1000,9 @@ function renderAnnualView() {
     
     if (weekParasha) {
       const meta = window.getParashaMeta(weekParasha);
-      displayTitle = `${weekNum}주차: ${weekParasha} (${meta.ko})`;
+      displayTitle = weekParasha.includes("샬롬")
+        ? `${weekNum}주차: 샬롬 (Shalom)`
+        : `${weekNum}주차: ${weekParasha} (${meta.ko})`;
       if (holidaysInWeek.length > 0) {
         displayTitle += ` [절기: ${holidaysInWeek.join(', ')}]`;
       }

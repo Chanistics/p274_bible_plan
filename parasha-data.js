@@ -1,4 +1,6 @@
 const PARASHA_META = {
+  "샬롬 (Shalom)": { ko: "샬롬", he: "שָׁלוֹם", meaning: "평강, 온전함 (성경 읽기 완료 및 신년 대기 주간)" },
+  "Shalom": { ko: "샬롬", he: "שָׁלוֹם", meaning: "평강, 온전함 (성경 읽기 완료 및 신년 대기 주간)" },
   "Bereshit": { ko: "베레시트", he: "בְּרֵאשִׁית", meaning: "태초에" },
   "Noach": { ko: "노아", he: "נֹחַ", meaning: "휴식, 안위" },
   "Lech-Lecha": { ko: "레크 레카", he: "לֶךְ-לְךָ", meaning: "너는 가라" },

@@ -6,9 +6,7 @@
  * @param {Array} hebcalItems - Hebcal API에서 가져온 달력 아이템 배열
  * @param {string} startDateStr - 시작일 (YYYY-MM-DD)
  */
-function generateHebrewYearPlan(hebcalItems, startDateStr) {
-  const totalDays = 365; // 365일 고정 플랜
-
+function generateHebrewYearPlan(hebcalItems, startDateStr, totalDays = 365) {
   const plan = {};
   const datesList = [];
   
@@ -57,6 +55,13 @@ function generateHebrewYearPlan(hebcalItems, startDateStr) {
   datesList.forEach((dateStr) => {
     const dayData = plan[dateStr];
     
+    // 5786 -> 5787 베레시트 전환기 샬롬 주간 대응 (2026-10-04 ~ 2026-10-09)
+    if (dateStr >= "2026-10-04" && dateStr <= "2026-10-09") {
+      dayData.parasha = "샬롬 (Shalom)";
+      dayData.torah = null;
+      return;
+    }
+
     // 이 날짜가 속한 주의 토요일 날짜 찾기
     const dParts = dateStr.split('-');
     const dYear = parseInt(dParts[0], 10);
@@ -162,11 +167,13 @@ function generateHebrewYearPlan(hebcalItems, startDateStr) {
   const otFlat = window.BIBLE_DATA.flattenBooks(window.BIBLE_DATA.OT_OTHER_BOOKS);
   const ntFlat = window.BIBLE_DATA.flattenBooks(window.BIBLE_DATA.NT_BOOKS);
   
-  const otDays = 266; // 365일 중 구약에 배분할 일수
-  const ntDays = totalDays - otDays; // 99일
+  // 전체 일수(totalDays) 중 구약과 신약에 배분할 비율을 기존 266:99 비율로 유지
+  const otRatio = 266 / 365;
+  const otDays = Math.round(totalDays * otRatio);
+  const ntDays = totalDays - otDays;
 
-  const otPerDay = otFlat.length / otDays; // 약 2.64
-  const ntPerDay = ntFlat.length / ntDays; // 약 2.63
+  const otPerDay = otFlat.length / otDays;
+  const ntPerDay = ntFlat.length / ntDays;
 
   let otIndex = 0;
   let ntIndex = 0;
