@@ -103,10 +103,18 @@
               <button id="btn-cal-next" class="btn-secondary btn-cal-arrow">▶</button>
             </div>
             <div class="calendar-grid-header">
-              <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+              <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div><div>토라포션</div>
             </div>
             <div id="calendar-grid-cells" class="calendar-grid-cells">
               <!-- Calendar cells injected here -->
+            </div>
+            
+            <!-- Selected Date Events Detail Section -->
+            <div id="selected-date-events-section" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--gold); margin-bottom: 0.5rem;" id="selected-date-events-title">...</h4>
+              <div id="selected-date-events-list">
+                <!-- Events listed here -->
+              </div>
             </div>
           </div>
 
@@ -234,6 +242,25 @@
           </div>
           <div id="bible-error-container" class="bible-error-container hidden">
             본문을 불러오지 못했습니다. 네트워크 연결을 확인해주세요.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Manager Modal (Popup) -->
+    <div id="event-manager-modal" class="modal-overlay hidden">
+      <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+          <h3 id="event-modal-title" class="modal-title">일정 관리</h3>
+          <button id="btn-close-event-modal" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="event-modal-list" style="margin-bottom: 1.5rem; max-height: 250px; overflow-y: auto;">
+            <!-- Event list items injected here -->
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="input-modal-event-text" placeholder="새 일정 입력..." style="flex: 1; padding: 0.75rem; background: #0b0e14; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
+            <button id="btn-modal-add-event" class="btn-primary" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; border-radius: 8px; white-space: nowrap;">추가</button>
           </div>
         </div>
       </div>

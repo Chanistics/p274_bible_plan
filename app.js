@@ -298,6 +298,10 @@ async function initApp() {
       theme: "dark"
     };
   }
+  
+  if (!appState.customEvents) {
+    appState.customEvents = {};
+  }
 
   // 테마 적용
   const savedMode = appState.theme || 'dark';
@@ -401,6 +405,7 @@ async function initApp() {
 
   // Tab Setup
   setupTabs();
+  setupModalEventActions();
 
   // 화면 렌더링 (이전 활성화된 탭 복원)
   const tabToActivate = appState.activeTab || 'dashboard';
@@ -918,6 +923,7 @@ async function renderDashboard() {
   // 캘린더 및 다가오는 절기 업데이트
   renderCalendar();
   renderUpcomingHolidays();
+  renderSelectedDateEvents();
 }
 
 function createChecklistItem(type, label, title, isDone, dateStr, passageData) {
@@ -1147,70 +1153,112 @@ function renderCalendar() {
   const startDayOfWeek = firstDay.getUTCDay();
   const numDays = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   
-  // 첫 주 빈칸 패딩
-  for (let i = 0; i < startDayOfWeek; i++) {
-    const emptyCell = document.createElement('div');
-    emptyCell.className = 'calendar-cell empty';
-    gridCells.appendChild(emptyCell);
-  }
-  
   const todayStr = getTodayStr();
+  let d = 1;
   
-  for (let d = 1; d <= numDays; d++) {
-    const dayStr = String(d).padStart(2, '0');
-    const monthStr = String(month + 1).padStart(2, '0');
-    const dateStr = `${year}-${monthStr}-${dayStr}`;
+  // 8열 그리드 구현을 위해 주별로 루프를 돕니다. (일~토 + 토라포션)
+  while (d <= numDays) {
+    let weekParasha = null;
+    let weekParashaFull = null;
+    const weekCells = [];
     
-    const cell = document.createElement('div');
-    cell.className = 'calendar-cell';
-    
-    const dayPlan = currentPlan[dateStr];
-    let isCompleted = false;
-    let holidayName = '';
-    
-    if (dayPlan) {
-      const progressDay = appState.progress[dateStr] || {};
-      isCompleted = isDayCompleted(dayPlan, progressDay);
-      
-      if (dayPlan.holidays && dayPlan.holidays.length > 0) {
-        for (const h of dayPlan.holidays) {
-          const name = getBiblicalHolidayName(h.name);
-          if (name) {
-            const match = name.match(/^([가-힣a-zA-Z0-9\s]+?)\s*\(/);
-            holidayName = match ? match[1].trim() : name;
-            break;
+    // 일(0)부터 토(6)까지 7일 분량의 셀 생성
+    for (let col = 0; col < 7; col++) {
+      if (d === 1 && col < startDayOfWeek) {
+        // 첫 주의 시작일 이전 공백 셀
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'calendar-cell empty';
+        weekCells.push(emptyCell);
+      } else if (d > numDays) {
+        // 마지막 주의 종료일 이후 공백 셀
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'calendar-cell empty';
+        weekCells.push(emptyCell);
+      } else {
+        // 정상 날짜 셀 생성
+        const dayStr = String(d).padStart(2, '0');
+        const monthStr = String(month + 1).padStart(2, '0');
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+        
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell';
+        
+        const dayPlan = currentPlan[dateStr];
+        let isCompleted = false;
+        let holidayName = '';
+        
+        if (dayPlan) {
+          const progressDay = appState.progress[dateStr] || {};
+          isCompleted = isDayCompleted(dayPlan, progressDay);
+          
+          if (dayPlan.holidays && dayPlan.holidays.length > 0) {
+            for (const h of dayPlan.holidays) {
+              const name = getBiblicalHolidayName(h.name);
+              if (name) {
+                const match = name.match(/^([가-힣a-zA-Z0-9\s]+?)\s*\(/);
+                holidayName = match ? match[1].trim() : name;
+                break;
+              }
+            }
+          }
+          
+          // 해당 주간의 파라샤 명칭 수집
+          if (dayPlan.parasha) {
+            weekParashaFull = dayPlan.parasha;
+            weekParasha = dayPlan.parasha.replace(/^Parashat\s+|^Parashas\s+/i, '').trim();
           }
         }
+        
+        if (isCompleted) cell.classList.add('completed');
+        if (dateStr === todayStr) cell.classList.add('today-highlight');
+        if (dateStr === activeDateStr) cell.classList.add('active-highlight');
+        
+        const hebDate = getHebrewDateNatively(dateStr);
+        
+        // 등록된 개인 일정이 있다면 글자수를 7자로 제한하여 배지 렌더링
+        let eventsHtml = '';
+        if (appState.customEvents && appState.customEvents[dateStr] && appState.customEvents[dateStr].length > 0) {
+          eventsHtml = appState.customEvents[dateStr].map(evt => {
+            const displayEvt = evt.length > 7 ? evt.substring(0, 7) + '...' : evt;
+            return `<span class="calendar-cell-event" title="${evt}">${displayEvt}</span>`;
+          }).join('');
+        }
+        
+        cell.innerHTML = `
+          <span class="calendar-cell-greg">${d}</span>
+          ${holidayName ? `<span class="calendar-cell-holiday" title="${holidayName}">${holidayName}</span>` : ''}
+          ${eventsHtml}
+          <span class="calendar-cell-heb">${hebDate.hd || ''}</span>
+        `;
+        
+        // 클릭 시 날짜 선택 및 팝업 모달창 띄우기
+        const cellDateStr = dateStr;
+        cell.addEventListener('click', () => {
+          activeDateStr = cellDateStr;
+          document.querySelectorAll('.calendar-cell').forEach(c => c.classList.remove('active-highlight'));
+          cell.classList.add('active-highlight');
+          
+          renderDashboard();
+          openEventModal(cellDateStr);
+        });
+        
+        weekCells.push(cell);
+        d++;
       }
     }
     
-    if (isCompleted) cell.classList.add('completed');
-    if (dateStr === todayStr) cell.classList.add('today-highlight');
-    if (dateStr === activeDateStr) cell.classList.add('active-highlight');
+    // 7일 분량의 셀을 그리드에 순서대로 삽입
+    weekCells.forEach(c => gridCells.appendChild(c));
     
-    const hebDate = getHebrewDateNatively(dateStr);
-    
-    cell.innerHTML = `
-      <span class="calendar-cell-greg">${d}</span>
-      ${holidayName ? `<span class="calendar-cell-holiday" title="${holidayName}">${holidayName}</span>` : ''}
-      <span class="calendar-cell-heb">${hebDate.hd || ''}</span>
-    `;
-    
-    cell.addEventListener('click', () => {
-      activeDateStr = dateStr;
-      document.querySelectorAll('.calendar-cell').forEach(c => c.classList.remove('active-highlight'));
-      cell.classList.add('active-highlight');
-      
-      // 주간 보기 탭으로 스위칭
-      const weeklyTabBtn = document.querySelector('.tab-item[data-tab="weekly"]');
-      if (weeklyTabBtn) {
-        weeklyTabBtn.click();
-      } else {
-        renderDashboard();
-      }
-    });
-    
-    gridCells.appendChild(cell);
+    // 8번째 열: 이번주 토라포션 셀 생성 및 삽입
+    const torahCell = document.createElement('div');
+    torahCell.className = 'calendar-cell torah-column-cell';
+    if (weekParasha) {
+      torahCell.innerHTML = `<span class="calendar-cell-parasha" title="Weekly Torah Portion: ${weekParashaFull}">${weekParasha}</span>`;
+    } else {
+      torahCell.innerHTML = `<span style="color: var(--text-dim); font-size: 0.7rem;">-</span>`;
+    }
+    gridCells.appendChild(torahCell);
   }
 }
 
@@ -1284,7 +1332,8 @@ function renderUpcomingHolidays() {
     row.innerHTML = `
       <div class="holiday-item-left">
         <div class="holiday-item-title">${item.name}</div>
-        <div class="holiday-item-date">${formattedGregorian} ㆍ ${formattedHebrew}</div>
+        <div class="holiday-item-date-greg">📅 ${formattedGregorian}</div>
+        ${formattedHebrew ? `<div class="holiday-item-date-heb">✡️ ${formattedHebrew}</div>` : ''}
       </div>
       <div class="holiday-item-dday">${ddayText}</div>
     `;
@@ -1530,21 +1579,160 @@ async function openBibleReader(title, passageData) {
   }
 }
 
-// 페이지 로드 시 기존 진입 상태 확인 및 자동 로그인/복원
-function checkAutoEnter() {
-  const savedState = localStorage.getItem(STATE_KEY);
-  if (savedState) {
-    try {
-      const parsed = JSON.parse(savedState);
-      if (parsed && parsed.hasEntered) {
-        document.getElementById('landing-page').classList.remove('active');
-        document.getElementById('dashboard-page').classList.add('active');
-        initApp();
+// 개인 일정 모달 팝업 추가/삭제/렌더링 기능 추가
+function setupModalEventActions() {
+  const btnClose = document.getElementById('btn-close-event-modal');
+  const btnAdd = document.getElementById('btn-modal-add-event');
+  const inputEvent = document.getElementById('input-modal-event-text');
+  const modalOverlay = document.getElementById('event-manager-modal');
+  
+  if (btnClose) {
+    btnClose.addEventListener('click', closeEventModal);
+  }
+  
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target.id === 'event-manager-modal') {
+        closeEventModal();
       }
-    } catch (e) {
-      console.error("Failed to parse auto-enter state", e);
+    });
+  }
+  
+  if (btnAdd && inputEvent) {
+    if (!btnAdd.dataset.listenerAdded) {
+      btnAdd.addEventListener('click', addModalEvent);
+      inputEvent.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addModalEvent();
+        }
+      });
+      btnAdd.dataset.listenerAdded = "true";
     }
   }
 }
 
-checkAutoEnter();
+function openEventModal(dateStr) {
+  const modal = document.getElementById('event-manager-modal');
+  if (!modal) return;
+  
+  modal.classList.remove('hidden');
+  renderEventModalList(dateStr);
+  
+  const inputEvent = document.getElementById('input-modal-event-text');
+  if (inputEvent) {
+    inputEvent.value = '';
+    inputEvent.focus();
+  }
+}
+
+function closeEventModal() {
+  const modal = document.getElementById('event-manager-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+function renderEventModalList(dateStr) {
+  const dateTitle = document.getElementById('event-modal-title');
+  const listContainer = document.getElementById('event-modal-list');
+  
+  if (!dateTitle || !listContainer) return;
+  
+  const p = dateStr.split('-');
+  const m = parseInt(p[1], 10);
+  const d = parseInt(p[2], 10);
+  
+  dateTitle.textContent = `${m}월 ${d}일 일정 관리`;
+  listContainer.innerHTML = '';
+  
+  const events = (appState.customEvents && appState.customEvents[dateStr]) || [];
+  
+  if (events.length === 0) {
+    listContainer.innerHTML = `<div style="color: var(--text-dim); font-size: 0.9rem; text-align: center; padding: 1.5rem 0;">등록된 일정이 없습니다.</div>`;
+    return;
+  }
+  
+  events.forEach((evt, idx) => {
+    const item = document.createElement('div');
+    item.className = 'event-item';
+    item.innerHTML = `
+      <span>${evt}</span>
+      <button class="btn-delete-event" title="삭제">&times;</button>
+    `;
+    
+    item.querySelector('.btn-delete-event').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteModalEvent(dateStr, idx);
+    });
+    
+    listContainer.appendChild(item);
+  });
+}
+
+function addModalEvent() {
+  const inputEvent = document.getElementById('input-modal-event-text');
+  if (!inputEvent) return;
+  
+  const text = inputEvent.value.trim();
+  if (!text) return;
+  
+  const targetDate = activeDateStr || getTodayStr();
+  if (!appState.customEvents) {
+    appState.customEvents = {};
+  }
+  if (!appState.customEvents[targetDate]) {
+    appState.customEvents[targetDate] = [];
+  }
+  
+  appState.customEvents[targetDate].push(text);
+  localStorage.setItem(STATE_KEY, JSON.stringify(appState));
+  
+  inputEvent.value = '';
+  
+  // 모달 목록 및 캘린더 갱신
+  renderEventModalList(targetDate);
+  renderDashboard();
+}
+
+function deleteModalEvent(dateStr, idx) {
+  if (appState.customEvents && appState.customEvents[dateStr]) {
+    appState.customEvents[dateStr].splice(idx, 1);
+    if (appState.customEvents[dateStr].length === 0) {
+      delete appState.customEvents[dateStr];
+    }
+    localStorage.setItem(STATE_KEY, JSON.stringify(appState));
+    
+    // 모달 목록 및 캘린더 갱신
+    renderEventModalList(dateStr);
+    renderDashboard();
+  }
+}
+
+// 달력 하단 선택된 날짜 상세 일정 렌더링
+function renderSelectedDateEvents() {
+  const titleEl = document.getElementById('selected-date-events-title');
+  const listEl = document.getElementById('selected-date-events-list');
+  if (!titleEl || !listEl) return;
+  
+  const targetDate = activeDateStr || getTodayStr();
+  const p = targetDate.split('-');
+  const m = parseInt(p[1], 10);
+  const d = parseInt(p[2], 10);
+  
+  titleEl.textContent = `📅 ${m}월 ${d}일 상세 일정`;
+  listEl.innerHTML = '';
+  
+  const events = (appState.customEvents && appState.customEvents[targetDate]) || [];
+  
+  if (events.length === 0) {
+    listEl.innerHTML = `<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.25rem 0;">등록된 일정이 없습니다. (달력 날짜를 클릭하여 일정 추가 가능)</div>`;
+    return;
+  }
+  
+  events.forEach(evt => {
+    const div = document.createElement('div');
+    div.style.cssText = "padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.9rem; color: var(--text-main); word-break: break-all;";
+    div.textContent = evt;
+    listEl.appendChild(div);
+  });
+}
